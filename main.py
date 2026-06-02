@@ -193,12 +193,16 @@ def train():
             if args.dataset in ['mini_imagenet', 'custom']:
                 val_acc_aux = test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
                                                  test_samples=val_samples, partition='val')
+            test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
+                               test_samples=val_samples, partition='train')
             enc_nn.train()
             metric_nn.train()
 
             if val_acc_aux is not None and val_acc_aux >= val_acc:
                 val_acc = val_acc_aux
                 best_iter = batch_idx + 1
+                torch.save(enc_nn, 'checkpoints/%s/models/enc_nn_best.t7' % args.exp_name)
+                torch.save(metric_nn, 'checkpoints/%s/models/metric_nn_best.t7' % args.exp_name)
 
             if args.dataset in ['mini_imagenet', 'custom']:
                 io.cprint("Best validation accuracy {:.4f} at iteration {}\n".format(val_acc, best_iter))
@@ -210,6 +214,13 @@ def train():
 
     # Test after training
     io.cprint("\n=== FINAL TEST PHASE ===")
+    try:
+        io.cprint("Loading best model weights for final testing...")
+        enc_nn = torch.load('checkpoints/%s/models/enc_nn_best.t7' % args.exp_name)
+        metric_nn = torch.load('checkpoints/%s/models/metric_nn_best.t7' % args.exp_name)
+    except Exception as e:
+        io.cprint("Warning: Could not load best model weights (%s). Using current weights instead." % e)
+        
     test_samples = args.iterations_test * args.batch_size_test
     test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
                        test_samples=test_samples, partition='test')
