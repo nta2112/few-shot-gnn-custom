@@ -39,7 +39,13 @@ def test_one_shot(args, model, test_samples=5000, partition='test'):
 
         # Compute embedding from x and xi_s
         z = enc_nn(x)[-1]
-        zi_s = [enc_nn(batch_xi)[-1] for batch_xi in xi_s]
+        
+        # Batch support images for a single forward pass
+        num_support = len(xi_s)
+        xi_all = torch.cat(xi_s, dim=0)
+        zi_all = enc_nn(xi_all)[-1]
+        cur_batch_size = x.size(0)
+        zi_s = [zi_all[j * cur_batch_size : (j + 1) * cur_batch_size] for j in range(num_support)]
 
         # Compute metric from embeddings
         output, out_logits = metric_nn(inputs=[z, zi_s, labels_yi, oracles_yi, hidden_labels])

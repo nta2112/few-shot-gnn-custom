@@ -99,7 +99,13 @@ def train_batch(model, data):
 
     # Compute embedding from x and xi_s
     z = enc_nn(batch_x)[-1]
-    zi_s = [enc_nn(batch_xi)[-1] for batch_xi in batches_xi]
+    
+    # Batch support images for a single forward pass
+    num_support = len(batches_xi)
+    xi_all = torch.cat(batches_xi, dim=0)
+    zi_all = enc_nn(xi_all)[-1]
+    cur_batch_size = batch_x.size(0)
+    zi_s = [zi_all[j * cur_batch_size : (j + 1) * cur_batch_size] for j in range(num_support)]
 
     # Compute metric from embeddings
     out_metric, out_logits = metric_nn(inputs=[z, zi_s, labels_yi, oracles_yi, hidden_labels])
