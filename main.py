@@ -184,11 +184,8 @@ def train():
         ####################
         # Test
         ####################
-        if (batch_idx + 1) % args.test_interval == 0 or batch_idx == 20:
-            if batch_idx == 20:
-                val_samples = 100
-            else:
-                val_samples = args.iterations_val * args.batch_size_test
+        if (batch_idx + 1) % args.test_interval == 0:
+            val_samples = args.iterations_val * args.batch_size_test
             
             if args.dataset in ['mini_imagenet', 'custom']:
                 val_acc_aux = test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
