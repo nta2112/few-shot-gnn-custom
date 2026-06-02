@@ -67,7 +67,30 @@ parser.add_argument('--iterations_test', type=int, default=300, metavar='N',
                     help='Number of episodes/tasks for final testing at the end of training')
 parser.add_argument('--eval_train', action='store_true', default=False,
                     help='Evaluate on training set during training loops (very slow due to CPU augmentations)')
+parser.add_argument('--val_after_tasks', type=int, default=0, metavar='N',
+                    help='Perform validation after every N training tasks (overrides test_interval if > 0)')
+parser.add_argument('--val_tasks', type=int, default=0, metavar='N',
+                    help='Validate on K tasks (overrides iterations_val if > 0)')
+parser.add_argument('--test_tasks', type=int, default=0, metavar='N',
+                    help='Test on T tasks at the end of training (overrides iterations_test if > 0)')
 args = parser.parse_args()
+
+# Automatically convert task-based parameters to iteration-based parameters
+if args.val_after_tasks > 0:
+    args.test_interval = args.val_after_tasks // args.batch_size
+    if args.test_interval < 1:
+        args.test_interval = 1
+
+if args.val_tasks > 0:
+    args.iterations_val = args.val_tasks // args.batch_size_test
+    if args.iterations_val < 1:
+        args.iterations_val = 1
+
+if args.test_tasks > 0:
+    args.iterations_test = args.test_tasks // args.batch_size_test
+    if args.iterations_test < 1:
+        args.iterations_test = 1
+
 
 
 def _init_():
