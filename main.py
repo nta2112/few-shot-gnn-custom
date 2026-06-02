@@ -19,7 +19,7 @@ parser.add_argument('--batch_size', type=int, default=10, metavar='batch_size',
                     help='Size of batch)')
 parser.add_argument('--batch_size_test', type=int, default=10, metavar='batch_size',
                     help='Size of batch)')
-parser.add_argument('--iterations', type=int, default=50000, metavar='N',
+parser.add_argument('--iterations', type=int, default=3000, metavar='N',
                     help='number of epochs to train ')
 parser.add_argument('--decay_interval', type=int, default=10000, metavar='N',
                     help='Learning rate decay interval')
@@ -35,7 +35,7 @@ parser.add_argument('--log-interval', type=int, default=20, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--save_interval', type=int, default=300000, metavar='N',
                     help='how many batches between each model saving')
-parser.add_argument('--test_interval', type=int, default=2000, metavar='N',
+parser.add_argument('--test_interval', type=int, default=100, metavar='N',
                     help='how many batches between each test')
 parser.add_argument('--test_N_way', type=int, default=5, metavar='N',
                     help='Number of classes for doing each classification run')
@@ -202,12 +202,10 @@ def train():
             if args.dataset in ['mini_imagenet', 'custom']:
                 io.cprint("Best test accuracy {:.4f} \n".format(test_acc))
 
-        ####################
-        # Save model
-        ####################
-        if (batch_idx + 1) % args.save_interval == 0:
-            torch.save(enc_nn, 'checkpoints/%s/models/enc_nn.t7' % args.exp_name)
-            torch.save(metric_nn, 'checkpoints/%s/models/metric_nn.t7' % args.exp_name)
+        # model saving disabled as requested
+        # if (batch_idx + 1) % args.save_interval == 0:
+        #     torch.save(enc_nn, 'checkpoints/%s/models/enc_nn.t7' % args.exp_name)
+        #     torch.save(metric_nn, 'checkpoints/%s/models/metric_nn.t7' % args.exp_name)
 
     # Test after training
     test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
