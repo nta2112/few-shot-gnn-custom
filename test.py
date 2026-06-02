@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 from utils import io_utils
 from data import generator
