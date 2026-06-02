@@ -59,6 +59,8 @@ parser.add_argument('--dataset', type=str, default='mini_imagenet', metavar='N',
                     help='omniglot | mini_imagenet | custom')
 parser.add_argument('--dec_lr', type=int, default=10000, metavar='N',
                     help='Decreasing the learning rate every x iterations')
+parser.add_argument('--json_path', type=str, default='C:/Users/HP/OneDrive/Desktop/split/test_split.json', metavar='N',
+                    help='Path to the split json file')
 args = parser.parse_args()
 
 

@@ -34,7 +34,7 @@ class Generator(data.Dataset):
             self.data, self.label_encoder = self.loader.load_dataset(self.partition, self.size)
         elif dataset == 'custom':
             from .custom_json import CustomJSONSplitDataset
-            json_path = "C:/Users/HP/OneDrive/Desktop/split/test_split.json"
+            json_path = getattr(self.args, 'json_path', "C:/Users/HP/OneDrive/Desktop/split/test_split.json")
             self.loader = CustomJSONSplitDataset(self.root, json_path)
             self.data, self.label_encoder = self.loader.load_dataset(self.partition, self.size)
         else:
