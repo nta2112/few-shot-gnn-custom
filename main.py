@@ -61,6 +61,10 @@ parser.add_argument('--dec_lr', type=int, default=10000, metavar='N',
                     help='Decreasing the learning rate every x iterations')
 parser.add_argument('--json_path', type=str, default='C:/Users/HP/OneDrive/Desktop/split/test_split.json', metavar='N',
                     help='Path to the split json file')
+parser.add_argument('--iterations_val', type=int, default=50, metavar='N',
+                    help='Number of episodes/tasks for validation during training')
+parser.add_argument('--iterations_test', type=int, default=300, metavar='N',
+                    help='Number of episodes/tasks for final testing at the end of training')
 args = parser.parse_args()
 
 
@@ -142,7 +146,7 @@ def train():
     counter = 0
     total_loss = 0
     val_acc, val_acc_aux = 0, 0
-    test_acc = 0
+    best_iter = 0
     for batch_idx in range(args.iterations):
 
         ####################
@@ -182,25 +186,22 @@ def train():
         ####################
         if (batch_idx + 1) % args.test_interval == 0 or batch_idx == 20:
             if batch_idx == 20:
-                test_samples = 100
+                val_samples = 100
             else:
-                test_samples = 3000
+                val_samples = args.iterations_val * args.batch_size_test
+            
             if args.dataset in ['mini_imagenet', 'custom']:
                 val_acc_aux = test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
-                                                 test_samples=test_samples*5, partition='val')
-            test_acc_aux = test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
-                                              test_samples=test_samples*5, partition='test')
-            test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
-                               test_samples=test_samples, partition='train')
+                                                 test_samples=val_samples, partition='val')
             enc_nn.train()
             metric_nn.train()
 
             if val_acc_aux is not None and val_acc_aux >= val_acc:
-                test_acc = test_acc_aux
                 val_acc = val_acc_aux
+                best_iter = batch_idx + 1
 
             if args.dataset in ['mini_imagenet', 'custom']:
-                io.cprint("Best test accuracy {:.4f} \n".format(test_acc))
+                io.cprint("Best validation accuracy {:.4f} at iteration {}\n".format(val_acc, best_iter))
 
         # model saving disabled as requested
         # if (batch_idx + 1) % args.save_interval == 0:
@@ -208,8 +209,10 @@ def train():
         #     torch.save(metric_nn, 'checkpoints/%s/models/metric_nn.t7' % args.exp_name)
 
     # Test after training
+    io.cprint("\n=== FINAL TEST PHASE ===")
+    test_samples = args.iterations_test * args.batch_size_test
     test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
-                       test_samples=args.test_samples)
+                       test_samples=test_samples, partition='test')
 
 
 def adjust_learning_rate(optimizers, lr, iter):
