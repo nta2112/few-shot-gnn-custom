@@ -15,7 +15,8 @@ class Generator(data.Dataset):
         self.args = args
 
         assert (dataset == 'omniglot' or
-                dataset == 'mini_imagenet'), 'Incorrect dataset partition'
+                dataset == 'mini_imagenet' or
+                dataset == 'custom'), 'Incorrect dataset partition'
         self.dataset = dataset
 
         if self.dataset == 'omniglot':
@@ -30,6 +31,11 @@ class Generator(data.Dataset):
             self.data = self.loader.load_dataset(self.partition == 'train', self.size)
         elif dataset == 'mini_imagenet':
             self.loader = mini_imagenet.MiniImagenet(self.root)
+            self.data, self.label_encoder = self.loader.load_dataset(self.partition, self.size)
+        elif dataset == 'custom':
+            from .custom_json import CustomJSONSplitDataset
+            json_path = "C:/Users/HP/OneDrive/Desktop/split/test_split.json"
+            self.loader = CustomJSONSplitDataset(self.root, json_path)
             self.data, self.label_encoder = self.loader.load_dataset(self.partition, self.size)
         else:
             raise NotImplementedError
@@ -73,7 +79,10 @@ class Generator(data.Dataset):
                     # We take num_shots + one sample for one class
                     samples = random.sample(self.data[class_], num_shots+1)
                     # Test sample is loaded
-                    batch_x[batch_counter, :, :, :] = samples[0]
+                    sample_x = samples[0]
+                    if not isinstance(sample_x, np.ndarray):
+                        sample_x = self.loader.aug_transform(sample_x).numpy()
+                    batch_x[batch_counter, :, :, :] = sample_x
                     labels_x[batch_counter, class_counter] = 1
                     labels_x_global[batch_counter] = self.class_encoder[class_]
                     samples = samples[1::]
@@ -81,7 +90,10 @@ class Generator(data.Dataset):
                     samples = random.sample(self.data[class_], num_shots)
 
                 for s_i in range(0, len(samples)):
-                    batches_xi[indexes_perm[counter]][batch_counter, :, :, :] = samples[s_i]
+                    sample_xi = samples[s_i]
+                    if not isinstance(sample_xi, np.ndarray):
+                        sample_xi = self.loader.aug_transform(sample_xi).numpy()
+                    batches_xi[indexes_perm[counter]][batch_counter, :, :, :] = sample_xi
                     if s_i < unlabeled_extra:
                         labels_yi[indexes_perm[counter]][batch_counter, class_counter] = 0
                         hidden_labels[batch_counter, indexes_perm[counter] + 1] = 1

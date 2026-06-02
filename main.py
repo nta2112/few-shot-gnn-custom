@@ -56,7 +56,7 @@ parser.add_argument('--dataset_root', type=str, default='datasets', metavar='N',
 parser.add_argument('--test_samples', type=int, default=30000, metavar='N',
                     help='Number of shots')
 parser.add_argument('--dataset', type=str, default='mini_imagenet', metavar='N',
-                    help='omniglot')
+                    help='omniglot | mini_imagenet | custom')
 parser.add_argument('--dec_lr', type=int, default=10000, metavar='N',
                     help='Decreasing the learning rate every x iterations')
 args = parser.parse_args()
@@ -129,7 +129,7 @@ def train():
     io.cprint(str(metric_nn))
 
     weight_decay = 0
-    if args.dataset == 'mini_imagenet':
+    if args.dataset in ['mini_imagenet', 'custom']:
         print('Weight decay '+str(1e-6))
         weight_decay = 1e-6
     opt_enc_nn = optim.Adam(enc_nn.parameters(), lr=args.lr, weight_decay=weight_decay)
@@ -183,7 +183,7 @@ def train():
                 test_samples = 100
             else:
                 test_samples = 3000
-            if args.dataset == 'mini_imagenet':
+            if args.dataset in ['mini_imagenet', 'custom']:
                 val_acc_aux = test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
                                                  test_samples=test_samples*5, partition='val')
             test_acc_aux = test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
@@ -197,7 +197,7 @@ def train():
                 test_acc = test_acc_aux
                 val_acc = val_acc_aux
 
-            if args.dataset == 'mini_imagenet':
+            if args.dataset in ['mini_imagenet', 'custom']:
                 io.cprint("Best test accuracy {:.4f} \n".format(test_acc))
 
         ####################
