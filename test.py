@@ -1,22 +1,24 @@
 import torch
 import numpy as np
+import torch.nn.functional as F
 from utils import io_utils
 from data import generator
 from torch.autograd import Variable
 
 
-def test_one_shot(args, model, test_samples=5000, partition='test'):
+def test_one_shot(args, model, test_samples=5000, partition='test', loader=None):
     io = io_utils.IOStream('checkpoints/' + args.exp_name + '/run.log')
 
-    io.cprint('\n**** TESTING WITH %s ***' % (partition,))
-
-    loader = generator.Generator(args.dataset_root, args, partition=partition, dataset=args.dataset)
+    if loader is None:
+        io.cprint('\n**** TESTING WITH %s (Initializing loader...) ***' % (partition,))
+        loader = generator.Generator(args.dataset_root, args, partition=partition, dataset=args.dataset)
 
     [enc_nn, metric_nn, softmax_module] = model
     enc_nn.eval()
     metric_nn.eval()
     correct = 0
     total = 0
+    total_loss = 0.0
     iterations = int(test_samples/args.batch_size_test)
     for i in range(iterations):
         data = loader.get_task_batch(batch_size=args.batch_size_test, n_way=args.test_N_way,
@@ -51,23 +53,30 @@ def test_one_shot(args, model, test_samples=5000, partition='test'):
         # Compute metric from embeddings
         output, out_logits = metric_nn(inputs=[z, zi_s, labels_yi, oracles_yi, hidden_labels])
         output = out_logits
-        y_pred = softmax_module.forward(output)
-        y_pred = y_pred.data.cpu().numpy()
+        logsoft_prob = softmax_module.forward(output)
+        
+        # Compute loss
+        label_x_numpy = labels_x_cpu.numpy()
+        formatted_label_x = np.argmax(label_x_numpy, axis=1)
+        formatted_label_x_tensor = Variable(torch.LongTensor(formatted_label_x))
+        if args.cuda:
+            formatted_label_x_tensor = formatted_label_x_tensor.cuda()
+        loss = F.nll_loss(logsoft_prob, formatted_label_x_tensor)
+        total_loss += loss.item()
+
+        y_pred = logsoft_prob.data.cpu().numpy()
         y_pred = np.argmax(y_pred, axis=1)
-        labels_x_cpu = labels_x_cpu.numpy()
-        labels_x_cpu = np.argmax(labels_x_cpu, axis=1)
 
         for row_i in range(y_pred.shape[0]):
-            if y_pred[row_i] == labels_x_cpu[row_i]:
+            if y_pred[row_i] == formatted_label_x[row_i]:
                 correct += 1
             total += 1
 
-        if (i+1) % 100 == 0:
-            io.cprint('{} correct from {} \tAccuracy: {:.3f}%)'.format(correct, total, 100.0*correct/total))
+    avg_loss = total_loss / iterations
+    acc = 100.0 * correct / total
 
-    io.cprint('{} correct from {} \tAccuracy: {:.3f}%)'.format(correct, total, 100.0*correct/total))
-    io.cprint('*** TEST FINISHED ***\n'.format(correct, total, 100.0 * correct / total))
+    io.cprint('[{}] {} correct from {} \tLoss: {:.6f} \tAccuracy: {:.3f}%'.format(partition.upper(), correct, total, avg_loss, acc))
     enc_nn.train()
     metric_nn.train()
 
-    return 100.0 * correct / total
+    return acc, avg_loss

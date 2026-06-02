@@ -137,17 +137,30 @@ def train_batch(model, data):
     # Loss
     label_x_numpy = label_x.cpu().data.numpy()
     formatted_label_x = np.argmax(label_x_numpy, axis=1)
-    formatted_label_x = Variable(torch.LongTensor(formatted_label_x))
+    formatted_label_x_tensor = Variable(torch.LongTensor(formatted_label_x))
     if args.cuda:
-        formatted_label_x = formatted_label_x.cuda()
-    loss = F.nll_loss(logsoft_prob, formatted_label_x)
+        formatted_label_x_tensor = formatted_label_x_tensor.cuda()
+    loss = F.nll_loss(logsoft_prob, formatted_label_x_tensor)
     loss.backward()
 
-    return loss
+    # Accuracy
+    y_pred = logsoft_prob.data.cpu().numpy()
+    y_pred = np.argmax(y_pred, axis=1)
+    correct = np.sum(y_pred == formatted_label_x)
+    acc = 100.0 * correct / len(y_pred)
+
+    return loss, acc
 
 
 def train():
+    io.cprint('Initializing Datasets...')
     train_loader = generator.Generator(args.dataset_root, args, partition='train', dataset=args.dataset)
+    val_loader = None
+    if args.dataset in ['mini_imagenet', 'custom']:
+        val_loader = generator.Generator(args.dataset_root, args, partition='val', dataset=args.dataset)
+    test_loader = generator.Generator(args.dataset_root, args, partition='test', dataset=args.dataset)
+    io.cprint('Datasets initialized.')
+
     io.cprint('Batch size: '+str(args.batch_size))
 
     #Try to load models
@@ -175,9 +188,13 @@ def train():
     enc_nn.train()
     metric_nn.train()
     counter = 0
-    total_loss = 0
-    val_acc, val_acc_aux = 0, 0
+    total_loss = 0.0
+    total_acc = 0.0
+    val_acc = 0.0
     best_iter = 0
+
+    total_epochs = args.iterations // args.test_interval
+
     for batch_idx in range(args.iterations):
 
         ####################
@@ -191,55 +208,61 @@ def train():
         opt_enc_nn.zero_grad()
         opt_metric_nn.zero_grad()
 
-        loss_d_metric = train_batch(model=[enc_nn, metric_nn, softmax_module],
-                                    data=[batch_x, label_x, batches_xi, labels_yi, oracles_yi, hidden_labels])
+        loss_d_metric, train_acc = train_batch(model=[enc_nn, metric_nn, softmax_module],
+                                              data=[batch_x, label_x, batches_xi, labels_yi, oracles_yi, hidden_labels])
 
         opt_enc_nn.step()
         opt_metric_nn.step()
 
-
         adjust_learning_rate(optimizers=[opt_enc_nn, opt_metric_nn], lr=args.lr, iter=batch_idx)
+
+        counter += 1
+        total_loss += loss_d_metric.item()
+        total_acc += train_acc
 
         ####################
         # Display
         ####################
-        counter += 1
-        total_loss += loss_d_metric.item()
-        if batch_idx % args.log_interval == 0:
-                display_str = 'Train Iter: {}'.format(batch_idx)
-                display_str += '\tLoss_d_metric: {:.6f}'.format(total_loss/counter)
-                io.cprint(display_str)
-                counter = 0
-                total_loss = 0
+        if (batch_idx + 1) % args.log_interval == 0:
+            display_str = 'Iter {}/{} \tLoss: {:.4f} \tAcc: {:.2f}%'.format(batch_idx + 1, args.iterations, loss_d_metric.item(), train_acc)
+            io.cprint(display_str)
 
         ####################
-        # Test
+        # Test (Epoch evaluation boundary)
         ####################
         if (batch_idx + 1) % args.test_interval == 0:
-            val_samples = args.iterations_val * args.batch_size_test
+            epoch_idx = (batch_idx + 1) // args.test_interval
+            avg_train_loss = total_loss / counter
+            avg_train_acc = total_acc / counter
             
-            if args.dataset in ['mini_imagenet', 'custom']:
-                val_acc_aux = test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
-                                                 test_samples=val_samples, partition='val')
+            # Reset counters
+            total_loss = 0.0
+            total_acc = 0.0
+            counter = 0
+
+            val_samples = args.iterations_val * args.batch_size_test
+            val_acc_aux = 0.0
+            val_loss_aux = 0.0
+            
+            if val_loader is not None:
+                val_acc_aux, val_loss_aux = test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
+                                                               test_samples=val_samples, partition='val', loader=val_loader)
             if args.eval_train:
                 test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
-                                   test_samples=val_samples, partition='train')
+                                   test_samples=val_samples, partition='train', loader=train_loader)
+            
             enc_nn.train()
             metric_nn.train()
 
-            if val_acc_aux is not None and val_acc_aux >= val_acc:
+            if val_acc_aux >= val_acc:
                 val_acc = val_acc_aux
                 best_iter = batch_idx + 1
                 torch.save(enc_nn, 'checkpoints/%s/models/enc_nn_best.t7' % args.exp_name)
                 torch.save(metric_nn, 'checkpoints/%s/models/metric_nn_best.t7' % args.exp_name)
 
-            if args.dataset in ['mini_imagenet', 'custom']:
-                io.cprint("Best validation accuracy {:.4f} at iteration {}\n".format(val_acc, best_iter))
-
-        # model saving disabled as requested
-        # if (batch_idx + 1) % args.save_interval == 0:
-        #     torch.save(enc_nn, 'checkpoints/%s/models/enc_nn.t7' % args.exp_name)
-        #     torch.save(metric_nn, 'checkpoints/%s/models/metric_nn.t7' % args.exp_name)
+            io.cprint('Epoch {}/{} - Train Loss: {:.4f}, Train Acc: {:.2f}% | Val Loss: {:.4f}, Val Acc: {:.2f}% (Best Val Acc: {:.2f}% at iter {})\n'.format(
+                epoch_idx, total_epochs, avg_train_loss, avg_train_acc, val_loss_aux, val_acc_aux, val_acc, best_iter
+            ))
 
     # Test after training
     io.cprint("\n=== FINAL TEST PHASE ===")
@@ -252,7 +275,7 @@ def train():
         
     test_samples = args.iterations_test * args.batch_size_test
     test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
-                       test_samples=test_samples, partition='test')
+                       test_samples=test_samples, partition='test', loader=test_loader)
 
 
 def adjust_learning_rate(optimizers, lr, iter):

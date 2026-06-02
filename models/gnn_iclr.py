@@ -112,7 +112,7 @@ class Wcompute(nn.Module):
             W_new = W_new.contiguous()
             W_new_size = W_new.size()
             W_new = W_new.view(-1, W_new.size(3))
-            W_new = F.softmax(W_new)
+            W_new = F.softmax(W_new, dim=-1)
             W_new = W_new.view(W_new_size)
             # Softmax applied
             W_new = torch.transpose(W_new, 2, 3)

@@ -178,7 +178,7 @@ class SoftmaxModule():
 
     def forward(self, outputs):
         if self.softmax_metric == 'log_softmax':
-            return F.log_softmax(outputs)
+            return F.log_softmax(outputs, dim=-1)
         else:
             raise(NotImplementedError)
 
