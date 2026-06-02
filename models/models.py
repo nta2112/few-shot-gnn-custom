@@ -109,7 +109,7 @@ class MetricNN(nn.Module):
         if self.metric_network == 'gnn_iclr_nl':
             assert(self.args.train_N_way == self.args.test_N_way)
             num_inputs = self.emb_size + self.args.train_N_way
-            if self.args.dataset == 'mini_imagenet':
+            if self.args.dataset in ['mini_imagenet', 'custom']:
                 self.gnn_obj = gnn_iclr.GNN_nl(args, num_inputs, nf=96, J=1)
             elif 'omniglot' in self.args.dataset:
                 self.gnn_obj = gnn_iclr.GNN_nl_omniglot(args, num_inputs, nf=96, J=1)
@@ -199,7 +199,7 @@ def create_models(args):
 
     if 'omniglot' == args.dataset:
         enc_nn = EmbeddingOmniglot(args, 64)
-    elif 'mini_imagenet' == args.dataset:
+    elif args.dataset in ['mini_imagenet', 'custom']:
         enc_nn = EmbeddingImagenet(args, 128)
     else:
         raise NameError('Dataset ' + args.dataset + ' not knows')
