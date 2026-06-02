@@ -65,6 +65,8 @@ parser.add_argument('--iterations_val', type=int, default=50, metavar='N',
                     help='Number of episodes/tasks for validation during training')
 parser.add_argument('--iterations_test', type=int, default=300, metavar='N',
                     help='Number of episodes/tasks for final testing at the end of training')
+parser.add_argument('--eval_train', action='store_true', default=False,
+                    help='Evaluate on training set during training loops (very slow due to CPU augmentations)')
 args = parser.parse_args()
 
 
@@ -190,8 +192,9 @@ def train():
             if args.dataset in ['mini_imagenet', 'custom']:
                 val_acc_aux = test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
                                                  test_samples=val_samples, partition='val')
-            test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
-                               test_samples=val_samples, partition='train')
+            if args.eval_train:
+                test.test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
+                                   test_samples=val_samples, partition='train')
             enc_nn.train()
             metric_nn.train()
 
