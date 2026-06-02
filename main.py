@@ -147,7 +147,7 @@ def train_batch(model, data):
     y_pred = logsoft_prob.data.cpu().numpy()
     y_pred = np.argmax(y_pred, axis=1)
     correct = np.sum(y_pred == formatted_label_x)
-    acc = 100.0 * correct / len(y_pred)
+    acc = correct / len(y_pred)
 
     return loss, acc
 
@@ -224,7 +224,7 @@ def train():
         # Display
         ####################
         if (batch_idx + 1) % args.log_interval == 0:
-            display_str = 'Iter {}/{} \tLoss: {:.4f} \tAcc: {:.2f}%'.format(batch_idx + 1, args.iterations, loss_d_metric.item(), train_acc)
+            display_str = 'Iter {}/{} \tLoss: {:.4f} \tAcc: {:.4f}'.format(batch_idx + 1, args.iterations, loss_d_metric.item(), train_acc)
             io.cprint(display_str)
 
         ####################
@@ -260,7 +260,7 @@ def train():
                 torch.save(enc_nn, 'checkpoints/%s/models/enc_nn_best.t7' % args.exp_name)
                 torch.save(metric_nn, 'checkpoints/%s/models/metric_nn_best.t7' % args.exp_name)
 
-            io.cprint('Epoch {}/{} - Train Loss: {:.4f}, Train Acc: {:.2f}% | Val Loss: {:.4f}, Val Acc: {:.2f}% (Best Val Acc: {:.2f}% at iter {})\n'.format(
+            io.cprint('Epoch {}/{} - Train Loss: {:.4f}, Train Acc: {:.4f} | Val Loss: {:.4f}, Val Acc: {:.4f} (Best Val Acc: {:.4f} at iter {})\n'.format(
                 epoch_idx, total_epochs, avg_train_loss, avg_train_acc, val_loss_aux, val_acc_aux, val_acc, best_iter
             ))
 

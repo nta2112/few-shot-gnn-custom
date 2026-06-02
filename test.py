@@ -73,9 +73,9 @@ def test_one_shot(args, model, test_samples=5000, partition='test', loader=None)
             total += 1
 
     avg_loss = total_loss / iterations
-    acc = 100.0 * correct / total
+    acc = correct / total
 
-    io.cprint('[{}] {} correct from {} \tLoss: {:.6f} \tAccuracy: {:.3f}%'.format(partition.upper(), correct, total, avg_loss, acc))
+    io.cprint('[{}] {} correct from {} \tLoss: {:.6f} \tAccuracy: {:.4f}'.format(partition.upper(), correct, total, avg_loss, acc))
     enc_nn.train()
     metric_nn.train()
 
